@@ -1,9 +1,9 @@
 const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
+const protoLoader = require('@grpc/proto-loader'); //busacar libreria
 const { Kafka } = require('kafkajs');
 
 const PROTO_PATH = './proto/pedido.proto';
-
+//
 // Cargar el archivo .proto
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
@@ -14,7 +14,6 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const pedidoProto = grpc.loadPackageDefinition(packageDefinition).pedido;
-
 // Verificar si `pedidoProto` contiene el servicio `PedidoService`
 console.log(pedidoProto);  // Esto te mostrará si `PedidoService` está cargado correctamente
 
