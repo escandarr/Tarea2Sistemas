@@ -1,0 +1,20 @@
+{
+  "name": "tarea2sistemas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "@grpc/proto-loader": "^0.7.13",
+    "elasticsearch": "^16.7.3",
+    "grpc": "^1.24.11",
+    "kafkajs": "^2.2.4",
+    "nodemailer": "^6.9.15"
+  }
+}
