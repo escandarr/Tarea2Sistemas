@@ -28,7 +28,47 @@ services:
       - "9092:9092"
       - "9093:9093"
     volumes:
-      - kafka_data:/bitnami/kafka
+      - kafka1_data:/bitnami/kafka
+    networks:
+      - kafka-network
+
+  kafka2:
+    image: bitnami/kafka:3.7.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_LISTENERS: INTERNAL://:9094,EXTERNAL://0.0.0.0:9095
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka2:9094,EXTERNAL://localhost:9095
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: INTERNAL
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+    ports:
+      - "9094:9094"
+      - "9095:9095"
+    volumes:
+      - kafka2_data:/bitnami/kafka
+    networks:
+      - kafka-network
+
+  kafka3:
+    image: bitnami/kafka:3.7.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_LISTENERS: INTERNAL://:9096,EXTERNAL://0.0.0.0:9097
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka3:9096,EXTERNAL://localhost:9097
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: INTERNAL
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+    ports:
+      - "9096:9096"
+      - "9097:9097"
+    volumes:
+      - kafka3_data:/bitnami/kafka
     networks:
       - kafka-network
 
@@ -36,11 +76,13 @@ services:
     image: provectuslabs/kafka-ui:latest
     depends_on:
       - kafka1
+      - kafka2
+      - kafka3
     ports:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9094,kafka3:9096
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     networks:
       - kafka-network
@@ -77,7 +119,11 @@ networks:
 volumes:
   zookeeper_data:
     driver: local
-  kafka_data:
+  kafka1_data:
+    driver: local
+  kafka2_data:
+    driver: local
+  kafka3_data:
     driver: local
   es_data:
     driver: local
