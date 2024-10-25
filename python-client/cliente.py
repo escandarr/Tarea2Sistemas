@@ -2,14 +2,19 @@ import grpc
 import pedido_pb2
 import pedido_pb2_grpc
 import csv
+import os
 
 def run():
+    # Obtener la ruta absoluta del archivo dataset_sales.csv
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_file_path = os.path.join(current_dir, 'dataset_sales.csv')
+
     # Crear un canal gRPC al servidor de gestión de pedidos
     with grpc.insecure_channel('localhost:50051') as channel:
         stub = pedido_pb2_grpc.PedidoServiceStub(channel)
 
         # Leer el dataset de compras (dataset_sales.csv)
-        with open('dataset_sales.csv', newline='') as csvfile:
+        with open(csv_file_path, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 # Crear un objeto de pedido a partir de cada fila
