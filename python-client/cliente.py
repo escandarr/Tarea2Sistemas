@@ -48,7 +48,6 @@ def procesar_dataset(ruta_dataset, stub):
             # Enviar el pedido al servidor
             realizar_pedido(stub, nombre_producto, precio, cliente_email, metodo_pago, banco, tipo_tarjeta, calle, numero, region)
 
-            # Esperar 2 segundos entre cada pedido para simular una pausa
             time.sleep(2)
 
 def conectar_servidor():
