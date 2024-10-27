@@ -35,7 +35,7 @@ class PedidoServiceStub(object):
             channel: A grpc.Channel.
         """
         self.RealizarPedido = channel.unary_unary(
-                '/PedidoService/RealizarPedido',
+                '/pedido.PedidoService/RealizarPedido',
                 request_serializer=pedido__pb2.PedidoRequest.SerializeToString,
                 response_deserializer=pedido__pb2.PedidoResponse.FromString,
                 _registered_method=True)
@@ -60,9 +60,9 @@ def add_PedidoServiceServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'PedidoService', rpc_method_handlers)
+            'pedido.PedidoService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('PedidoService', rpc_method_handlers)
+    server.add_registered_method_handlers('pedido.PedidoService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
@@ -83,7 +83,7 @@ class PedidoService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/PedidoService/RealizarPedido',
+            '/pedido.PedidoService/RealizarPedido',
             pedido__pb2.PedidoRequest.SerializeToString,
             pedido__pb2.PedidoResponse.FromString,
             options,

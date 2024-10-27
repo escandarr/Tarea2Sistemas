@@ -1,38 +1,72 @@
-import grpc
-import pedido_pb2
-import pedido_pb2_grpc
 import csv
+import grpc
+import time
 import os
+from pedido_pb2 import PedidoRequest  # Importa la clase PedidoRequest
+from pedido_pb2_grpc import PedidoServiceStub  # Importa el servicio PedidoServiceStub
 
-def run():
-    # Obtener la ruta absoluta del archivo dataset_sales.csv
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_file_path = os.path.join(current_dir, 'dataset_sales.csv')
+def realizar_pedido(stub, nombre_producto, precio, cliente_email, metodo_pago, banco, tipo_tarjeta, calle, numero, region):
+    """
+    Función para crear una solicitud de pedido y enviarla al servidor gRPC.
+    """
+    # Crear la solicitud de pedido para el Servidor gRPC
+    pedido = PedidoRequest(
+        producto=nombre_producto,
+        precio=precio,
+        email_cliente=cliente_email,
+        pasarela_pago=metodo_pago,
+        banco=banco,
+        marca_tarjeta=tipo_tarjeta,
+        direccion=calle,
+        numero=numero,
+        region=region
+    )
 
-    # Crear un canal gRPC al servidor de gestión de pedidos
-    with grpc.insecure_channel('localhost:50051') as channel:
-        stub = pedido_pb2_grpc.PedidoServiceStub(channel)
+    # Enviar el pedido al Servidor gRPC
+    respuesta = stub.RealizarPedido(pedido)
+    print(f"Respuesta del servidor: {respuesta.mensaje}, Éxito: {respuesta.exito}")
 
-        # Leer el dataset de compras (dataset_sales.csv)
-        with open(csv_file_path, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Crear un objeto de pedido a partir de cada fila
-                compra = pedido_pb2.PedidoRequest(
-                    email_cliente=row['Email_Client'],
-                    producto=row['Product'],
-                    precio=float(row['Price']),
-                    pasarela_pago=row['Pay_Method'],
-                    banco=row['Bank'],
-                    marca_tarjeta=row['Type_Card'],
-                    direccion=row['Street'],
-                    numero=row['Number'],
-                    region=row['Region']
-                )
+def procesar_dataset(ruta_dataset, stub):
+    """
+    Función para leer el archivo CSV y procesar cada fila como un pedido.
+    """
+    with open(ruta_dataset, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
 
-                # Enviar el pedido al servidor gRPC
-                response = stub.RealizarPedido(compra)
-                print(f"Compra enviada: {response.mensaje}, Éxito: {response.exito}")
+        for row in reader:
+            # Extraer los datos de la fila actual
+            nombre_producto = row['Product']
+            precio = float(row['Price'])
+            cliente_email = row['Email_Client']
+            metodo_pago = row['Pay_Method']
+            banco = row['Bank']
+            tipo_tarjeta = row['Type_Card']
+            calle = row['Street']
+            numero = row['Number']
+            region = row['Region']
 
-if __name__ == '__main__':
-    run()
+            # Enviar el pedido al servidor
+            realizar_pedido(stub, nombre_producto, precio, cliente_email, metodo_pago, banco, tipo_tarjeta, calle, numero, region)
+
+            # Esperar 2 segundos entre cada pedido para simular una pausa
+            time.sleep(2)
+
+def conectar_servidor():
+    """
+    Función para establecer la conexión con el servidor gRPC y devolver el stub.
+    """
+    # Conectar al Servidor gRPC
+    canal_servidor = grpc.insecure_channel('localhost:50051')  # Asegúrate de usar el puerto correcto
+    stub = PedidoServiceStub(canal_servidor)
+    print("Conectado al servidor gRPC en localhost:50051")
+    return stub
+
+if __name__ == "__main__":
+    # Conectar al servidor gRPC
+    stub = conectar_servidor()
+
+    # Construir la ruta absoluta del dataset
+    ruta_dataset = os.path.join(os.path.dirname(__file__), 'dataset_sales.csv')
+
+    # Procesar el dataset
+    procesar_dataset(ruta_dataset, stub)
