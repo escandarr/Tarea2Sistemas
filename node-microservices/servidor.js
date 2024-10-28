@@ -24,7 +24,8 @@ let kafkaProducer;
 async function createKafkaProducer() {
   const kafka = new Kafka({
     clientId: 'gestion-pedidos',
-    brokers: brokersList,  // Conectar a todos los brokers en lugar de uno solo
+    brokers: brokersList, 
+    connectionTimeout: 5000,  // en milisegundos // Conectar a todos los brokers en lugar de uno solo
     logLevel: logLevel.ERROR,
   });
 
@@ -41,7 +42,7 @@ async function enviarPedidoKafka(pedido) {
 
   try {
     await kafkaProducer.send({
-      topic: 'pedidos',
+      topic: 'pedidos',  // Asegúrate de que el tópico 'pedidos' existe
       messages: [{ value: JSON.stringify(pedido) }],
     });
     console.log(`Pedido enviado a Kafka al tópico 'pedidos'`);
@@ -49,6 +50,7 @@ async function enviarPedidoKafka(pedido) {
     console.error('Error enviando el pedido a Kafka:', error);
   }
 }
+
 
 // Implementar la lógica del servicio gRPC
 async function procesarPedido(call, callback) {
