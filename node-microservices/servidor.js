@@ -4,7 +4,6 @@ const { Kafka, logLevel } = require('kafkajs');
 const PROTO_PATH = './proto/pedido.proto';
 
 const brokersList = ['localhost:9092', 'localhost:9094', 'localhost:9096'];
-let currentBrokerIndex = 0;
 
 // Cargar el archivo .proto
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
@@ -19,27 +18,19 @@ const pedidoProto = grpc.loadPackageDefinition(packageDefinition).pedido;
 // Crear el servidor gRPC
 const server = new grpc.Server();
 
-// Función para alternar entre los brokers
-function getNextBroker() {
-  const broker = brokersList[currentBrokerIndex];
-  currentBrokerIndex = (currentBrokerIndex + 1) % brokersList.length; // Avanza al siguiente broker de manera cíclica
-  return broker;
-}
-
-// Configurar el productor de Kafka
+// Configurar el productor de Kafka conectado a todos los brokers
 let kafkaProducer;
 
 async function createKafkaProducer() {
-  const broker = getNextBroker(); // Selecciona el broker cíclicamente
   const kafka = new Kafka({
     clientId: 'gestion-pedidos',
-    brokers: [broker],
+    brokers: brokersList,  // Conectar a todos los brokers en lugar de uno solo
     logLevel: logLevel.ERROR,
   });
 
   kafkaProducer = kafka.producer();
   await kafkaProducer.connect();
-  console.log(`Conectado al broker de Kafka en ${broker}`);
+  console.log(`Conectado a los brokers de Kafka: ${brokersList.join(', ')}`);
 }
 
 // Enviar pedido a Kafka
@@ -53,7 +44,7 @@ async function enviarPedidoKafka(pedido) {
       topic: 'pedidos',
       messages: [{ value: JSON.stringify(pedido) }],
     });
-    console.log(`Pedido enviado a Kafka al tópico 'pedidos' en el broker ${brokersList[currentBrokerIndex - 1]}`);
+    console.log(`Pedido enviado a Kafka al tópico 'pedidos'`);
   } catch (error) {
     console.error('Error enviando el pedido a Kafka:', error);
   }
@@ -76,7 +67,7 @@ async function procesarPedido(call, callback) {
   console.log('Pedido recibido:', pedido);
   await enviarPedidoKafka(pedido);
 
-  callback(null, { mensaje: 'Pedido procesado correctamente',brokersList, exito: true });
+  callback(null, { mensaje: 'Pedido procesado correctamente', exito: true });
 }
 
 // Agregar el servicio al servidor gRPC
