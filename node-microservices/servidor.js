@@ -1,11 +1,13 @@
+// Importar las dependencias necesarias
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
-const { Kafka, logLevel } = require('kafkajs');
-const PROTO_PATH = './proto/pedido.proto';
+const path = require('path');
+const { Kafka, logLevel } = require('kafkajs'); // Importar la librería de Kafka
 
-const brokersList = ['localhost:9092', 'localhost:9094', 'localhost:9096'];
+// Ruta al archivo .proto
+const PROTO_PATH = path.resolve(__dirname, 'proto', 'pedido.proto');
 
-// Cargar el archivo .proto
+// gRPC: Cargar el archivo .proto
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
@@ -13,73 +15,94 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   defaults: true,
   oneofs: true,
 });
+
 const pedidoProto = grpc.loadPackageDefinition(packageDefinition).pedido;
 
-// Crear el servidor gRPC
-const server = new grpc.Server();
+// Configurar el servidor gRPC
+function startServer() {
+  const server = new grpc.Server();
 
-// Configurar el productor de Kafka conectado a todos los brokers
-let kafkaProducer;
+  // Agregar el servicio al servidor
+  server.addService(pedidoProto.PedidoService.service, { RealizarPedido: processOrder });
 
-async function createKafkaProducer() {
-  const kafka = new Kafka({
-    clientId: 'gestion-pedidos',
-    brokers: brokersList, 
-    connectionTimeout: 5000,  // en milisegundos // Conectar a todos los brokers en lugar de uno solo
-    logLevel: logLevel.ERROR,
+  // Escuchar en el puerto 50052
+  server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), (err, port) => {
+    if (err) {
+      console.error(`Error al iniciar el servidor gRPC: ${err}`);
+      return;
+    }
+    console.log(`Servidor de gestión de pedidos iniciado en el puerto ${port}...`);
   });
-
-  kafkaProducer = kafka.producer();
-  await kafkaProducer.connect();
-  console.log(`Conectado a los brokers de Kafka: ${brokersList.join(', ')}`);
 }
 
-// Enviar pedido a Kafka
-async function enviarPedidoKafka(pedido) {
-  if (!kafkaProducer) {
-    await createKafkaProducer();
-  }
+// Configurar Kafka para conectarse al broker
+const kafka = new Kafka({
+  clientId: 'gestion-pedidos',
+  brokers: ['localhost:9092'], // Se conecta al puerto 9092 de Kafka
+  logLevel: logLevel.ERROR,
+});
 
+// Crear un productor de Kafka
+const producer = kafka.producer();
+
+// Iniciar el productor de Kafka
+async function startProducerKafka() {
+  await producer.connect();
+  console.log('Conectado al broker de Kafka como productor');
+}
+
+const sendOrders = async (pedido) => {
   try {
-    await kafkaProducer.send({
-      topic: 'pedidos',  // Asegúrate de que el tópico 'pedidos' existe
+    await producer.send({
+      topic: 'orders',
       messages: [{ value: JSON.stringify(pedido) }],
     });
-    console.log(`Pedido enviado a Kafka al tópico 'pedidos'`);
+    console.log('Pedidos enviados a Kafka al tópico orders');
   } catch (error) {
-    console.error('Error enviando el pedido a Kafka:', error);
+    console.error(`Error al enviar el pedido a Kafka: ${error}`);
   }
-}
+};
 
+const sendMetrics = async (pedido) => {
+  try {
+    await producer.send({
+      topic: 'metrics',
+      messages: [{ value: JSON.stringify(pedido) }],
+    });
+    console.log('Métricas enviadas a Kafka al tópico metrics');
+  } catch (error) {
+    console.error(`Error al enviar las métricas a Kafka: ${error}`);
+  }
+};
 
 // Implementar la lógica del servicio gRPC
-async function procesarPedido(call, callback) {
-  const pedido = {
-    email_cliente: call.request.email_cliente,
-    producto: call.request.producto,
+async function processOrder(call, callback) {
+  const order = {
+    nombre_producto: call.request.nombre_producto,
     precio: call.request.precio,
-    pasarela_pago: call.request.pasarela_pago,
+    cliente_email: call.request.cliente_email,
+    metodo_pago: call.request.metodo_pago,
     banco: call.request.banco,
-    marca_tarjeta: call.request.marca_tarjeta,
-    direccion: call.request.direccion,
+    tipo_tarjeta: call.request.tipo_tarjeta,
+    calle: call.request.calle,
     numero: call.request.numero,
     region: call.request.region,
+    timestamp: new Date().toISOString(),
   };
 
-  console.log('Pedido recibido:', pedido);
-  await enviarPedidoKafka(pedido);
+  console.log(`Procesando pedido: ${call.request.nombre_producto}`);
 
-  callback(null, { mensaje: 'Pedido procesado correctamente', exito: true });
+  await sendOrders(order); // Enviar pedido a Kafka
+  await sendMetrics(order); // Enviar métricas a Kafka
+
+  // Respuesta simulada
+  callback(null, { mensaje: `Pedido procesado correctamente para ${call.request.cliente_email}` });
 }
 
-// Agregar el servicio al servidor gRPC
-server.addService(pedidoProto.PedidoService.service, { RealizarPedido: procesarPedido });
+// Main
+async function main() {
+  await startProducerKafka(); // Iniciar el productor de Kafka
+  startServer(); // Iniciar el servidor gRPC
+}
 
-// Iniciar el servidor gRPC en el puerto 50051
-server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), (error, port) => {
-  if (error) {
-    console.error('Error al iniciar el servidor gRPC:', error);
-    return;
-  }
-  console.log(`Servidor gRPC ejecutándose en el puerto ${port}`);
-});
+main();
